@@ -8,7 +8,10 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Health check', description: 'Verifica se a aplicação está no ar' })
+  @ApiOperation({
+    summary: 'Health check',
+    description: 'Verifica se a aplicação está no ar',
+  })
   @ApiOkResponse({ description: 'Aplicação rodando', type: String })
   getHello(): string {
     return this.appService.getHello()
