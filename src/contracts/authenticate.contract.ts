@@ -1,12 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsEmail, IsString, MinLength } from 'class-validator'
 
-export class CreateUserContract {
-  @ApiProperty({ description: 'Nome do usuário', example: 'João da Silva' })
-  @IsString()
-  @MinLength(1)
-  name!: string
-
+export class AuthenticateContract {
   @ApiProperty({
     description: 'Email do usuário',
     example: 'joao@example.com',
@@ -17,9 +12,8 @@ export class CreateUserContract {
   @ApiProperty({
     description: 'Senha do usuário',
     example: 'senha-secreta',
-    minLength: 8,
   })
   @IsString()
-  @MinLength(8)
+  @MinLength(1)
   password!: string
 }

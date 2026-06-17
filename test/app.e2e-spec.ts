@@ -1,29 +1,39 @@
 import type { INestApplication } from '@nestjs/common'
-import { Test, type TestingModule } from '@nestjs/testing'
 import request from 'supertest'
 import type { App } from 'supertest/types'
-import { AppModule } from './../src/app.module'
+import { cleanDatabase, createTestApp, registerAndLogin } from './helpers'
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile()
-
-    app = moduleFixture.createNestApplication()
-    await app.init()
+  beforeAll(async () => {
+    app = await createTestApp()
+    await cleanDatabase(app)
   })
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
+  afterAll(async () => {
+    await cleanDatabase(app)
+    await app.close()
+  })
+
+  it('GET / autenticado retorna 200 e Hello World!', async () => {
+    const { cookie } = await registerAndLogin(app)
+
+    await request(app.getHttpServer())
       .get('/')
+      .set('Cookie', cookie)
       .expect(200)
       .expect('Hello World!')
   })
 
-  afterEach(async () => {
-    await app.close()
+  it('GET / sem cookie retorna 401', async () => {
+    await request(app.getHttpServer()).get('/').expect(401)
+  })
+
+  it('GET / com token inválido retorna 401', async () => {
+    await request(app.getHttpServer())
+      .get('/')
+      .set('Cookie', 'access_token=token-invalido')
+      .expect(401)
   })
 })

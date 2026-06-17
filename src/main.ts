@@ -1,12 +1,18 @@
+import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { apiReference } from '@scalar/nestjs-api-reference'
+import cookieParser from 'cookie-parser'
 import { AppModule } from './app.module'
 import { EnvService } from './env/env.service'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
+
+  app.use(cookieParser())
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
 
   const config = new DocumentBuilder()
     .setTitle('Gerenciador de Gastos')

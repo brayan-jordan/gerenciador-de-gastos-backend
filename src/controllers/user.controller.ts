@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger'
 import { CreateUserContract } from '../contracts/create-user.contract'
 import { UpdateUserContract } from '../contracts/update-user.contract'
+import { Public } from '../decorators/public.decorator'
 import { UserPresenter } from '../presenters/user.presenter'
 import { UserService } from '../services/user.service'
 
@@ -28,16 +29,18 @@ import { UserService } from '../services/user.service'
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @Public()
   @Post()
   @ApiOperation({
     summary: 'Criar usuário',
     description: 'Cria um novo usuário',
   })
   @ApiCreatedResponse({ description: 'Usuário criado', type: UserPresenter })
-  create(
+  async create(
     @Body() createUserContract: CreateUserContract,
   ): Promise<UserPresenter> {
-    return this.userService.create(createUserContract)
+    const user = await this.userService.create(createUserContract)
+    return UserPresenter.toHttp(user)
   }
 
   @Get()
@@ -46,8 +49,9 @@ export class UserController {
     description: 'Lista todos os usuários',
   })
   @ApiOkResponse({ description: 'Lista de usuários', type: [UserPresenter] })
-  findAll(): Promise<UserPresenter[]> {
-    return this.userService.findAll()
+  async findAll(): Promise<UserPresenter[]> {
+    const users = await this.userService.findAll()
+    return users.map(UserPresenter.toHttp)
   }
 
   @Get(':id')
@@ -57,8 +61,11 @@ export class UserController {
   })
   @ApiOkResponse({ description: 'Usuário encontrado', type: UserPresenter })
   @ApiNotFoundResponse({ description: 'Usuário não encontrado' })
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserPresenter> {
-    return this.userService.findOne(id)
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<UserPresenter> {
+    const user = await this.userService.findOne(id)
+    return UserPresenter.toHttp(user)
   }
 
   @Patch(':id')
@@ -68,11 +75,12 @@ export class UserController {
   })
   @ApiOkResponse({ description: 'Usuário atualizado', type: UserPresenter })
   @ApiNotFoundResponse({ description: 'Usuário não encontrado' })
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserContract: UpdateUserContract,
   ): Promise<UserPresenter> {
-    return this.userService.update(id, updateUserContract)
+    const user = await this.userService.update(id, updateUserContract)
+    return UserPresenter.toHttp(user)
   }
 
   @Delete(':id')
