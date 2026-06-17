@@ -3,6 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { apiReference } from '@scalar/nestjs-api-reference'
 import { AppModule } from './app.module'
+import { EnvService } from './env/env.service'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
@@ -23,6 +24,9 @@ async function bootstrap() {
     }),
   )
 
-  await app.listen(process.env.PORT ?? 3000)
+  const envService = app.get(EnvService)
+  const port = envService.get('PORT')
+
+  await app.listen(port)
 }
 bootstrap()
