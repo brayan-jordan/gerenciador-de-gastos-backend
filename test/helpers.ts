@@ -6,6 +6,7 @@ import request from 'supertest'
 import type { App } from 'supertest/types'
 import { AppModule } from '../src/app.module'
 import { DATABASE, type Database } from '../src/database/database'
+import { expenseEntries } from '../src/models/expense-entry'
 import { fixedExpenses } from '../src/models/fixed-expense'
 import { users } from '../src/models/user'
 
@@ -30,6 +31,7 @@ export async function createTestApp(): Promise<INestApplication<App>> {
 /** Limpa o banco de teste respeitando a ordem de FK. */
 export async function cleanDatabase(app: INestApplication): Promise<void> {
   const db = app.get<Database>(DATABASE)
+  await db.delete(expenseEntries)
   await db.delete(fixedExpenses)
   await db.delete(users)
 }
