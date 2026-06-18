@@ -15,6 +15,13 @@
       "when": 1781725832407,
       "tag": "0001_lively_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781820344606,
+      "tag": "0002_fat_raider",
+      "breakpoints": true
     }
   ]
 }
