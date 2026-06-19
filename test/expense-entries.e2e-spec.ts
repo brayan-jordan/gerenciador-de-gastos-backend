@@ -42,6 +42,7 @@ describe('ExpenseEntryController (e2e)', () => {
       expect(response.body.description).toBe('Mercado')
       expect(response.body.amountInCents).toBe(15090)
       expect(response.body.date).toBe('2026-06-18')
+      expect(response.body.fixedExpenseId).toBeNull()
     })
 
     it('exige autenticação (401)', async () => {
@@ -98,6 +99,7 @@ describe('ExpenseEntryController (e2e)', () => {
       expect(Array.isArray(response.body)).toBe(true)
       for (const item of response.body) {
         expect(item.description).not.toBe('Lançamento B')
+        expect('fixedExpenseId' in item).toBe(true)
       }
     })
 
@@ -130,6 +132,7 @@ describe('ExpenseEntryController (e2e)', () => {
         .expect(200)
 
       expect(response.body.id).toBe(created.body.id)
+      expect('fixedExpenseId' in response.body).toBe(true)
     })
 
     it('retorna 404 para id de outro usuário', async () => {

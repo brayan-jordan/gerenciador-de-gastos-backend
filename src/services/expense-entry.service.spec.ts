@@ -9,6 +9,7 @@ const MOCK_ID = 'entry-1'
 const MOCK_ENTRY = {
   id: MOCK_ID,
   userId: MOCK_USER_ID,
+  fixedExpenseId: null,
   description: 'Mercado',
   amountInCents: 15090,
   date: '2026-06-18',

@@ -9,8 +9,11 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common'
 import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -20,10 +23,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger'
+import { ConfirmFixedExpenseContract } from '../contracts/confirm-fixed-expense.contract'
 import { CreateFixedExpenseContract } from '../contracts/create-fixed-expense.contract'
+import { PendingFixedExpenseQuery } from '../contracts/pending-fixed-expense.contract'
 import { UpdateFixedExpenseContract } from '../contracts/update-fixed-expense.contract'
 import type { AuthenticatedUser } from '../decorators/current-user.decorator'
 import { CurrentUser } from '../decorators/current-user.decorator'
+import { ExpenseEntryPresenter } from '../presenters/expense-entry.presenter'
 import { FixedExpensePresenter } from '../presenters/fixed-expense.presenter'
 import { FixedExpenseService } from '../services/fixed-expense.service'
 
@@ -53,6 +59,17 @@ export class FixedExpenseController {
     return fixedExpenses.map(FixedExpensePresenter.toHttp)
   }
 
+  @Get('pending')
+  @ApiOperation({ summary: 'Listar gastos fixos pendentes', description: 'Lista gastos fixos que incidem no mês informado e ainda não foram confirmados' })
+  @ApiOkResponse({ description: 'Lista de gastos fixos pendentes', type: [FixedExpensePresenter] })
+  async findPending(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: PendingFixedExpenseQuery,
+  ): Promise<FixedExpensePresenter[]> {
+    const pending = await this.fixedExpenseService.findPending(user.sub, query.month)
+    return pending.map(FixedExpensePresenter.toHttp)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar gasto fixo', description: 'Busca um gasto fixo pelo id' })
   @ApiOkResponse({ description: 'Gasto fixo encontrado', type: FixedExpensePresenter })
@@ -76,6 +93,21 @@ export class FixedExpenseController {
   ): Promise<FixedExpensePresenter> {
     const fixedExpense = await this.fixedExpenseService.update(user.sub, id, updateFixedExpenseContract)
     return FixedExpensePresenter.toHttp(fixedExpense)
+  }
+
+  @Post(':id/confirm')
+  @ApiOperation({ summary: 'Confirmar gasto fixo', description: 'Confirma um gasto fixo para um mês, criando um lançamento no histórico' })
+  @ApiCreatedResponse({ description: 'Lançamento criado', type: ExpenseEntryPresenter })
+  @ApiNotFoundResponse({ description: 'Gasto fixo não encontrado' })
+  @ApiBadRequestResponse({ description: 'Mês fora da recorrência do gasto fixo' })
+  @ApiConflictResponse({ description: 'Gasto fixo já confirmado neste mês' })
+  async confirm(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() confirmContract: ConfirmFixedExpenseContract,
+  ): Promise<ExpenseEntryPresenter> {
+    const entry = await this.fixedExpenseService.confirm(user.sub, id, confirmContract)
+    return ExpenseEntryPresenter.toHttp(entry)
   }
 
   @Delete(':id')

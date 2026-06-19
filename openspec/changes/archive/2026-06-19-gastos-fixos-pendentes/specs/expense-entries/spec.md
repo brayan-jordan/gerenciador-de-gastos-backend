@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Criar lançamento no histórico
 O sistema SHALL permitir que um usuário autenticado crie um lançamento de gasto com descrição, valor em centavos (inteiro positivo) e data do gasto. O lançamento SHALL ser vinculado ao userId do token JWT. O campo `fixedExpenseId` SHALL ser aceito opcionalmente no body; quando presente, SHALL ser uma FK válida para um gasto fixo do próprio usuário. Os campos `createdAt` e `updatedAt` SHALL ser preenchidos automaticamente.

@@ -14,6 +14,13 @@ export class ExpenseEntryPresenter {
   })
   userId!: string
 
+  @ApiProperty({
+    description: 'ID do gasto fixo de origem (null para lançamentos manuais)',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+    nullable: true,
+  })
+  fixedExpenseId!: string | null
+
   @ApiProperty({ description: 'Descrição do lançamento', example: 'Mercado' })
   description!: string
 
@@ -33,6 +40,7 @@ export class ExpenseEntryPresenter {
     return {
       id: entry.id,
       userId: entry.userId,
+      fixedExpenseId: entry.fixedExpenseId ?? null,
       description: entry.description,
       amountInCents: entry.amountInCents,
       date: entry.date,

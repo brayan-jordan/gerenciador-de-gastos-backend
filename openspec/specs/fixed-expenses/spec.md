@@ -95,3 +95,85 @@ O sistema SHALL expor um param decorator `@CurrentUser()` que extrai o payload d
 #### Scenario: Extração do userId em controller protegido
 - **WHEN** controller usa `@CurrentUser() userId: string` em um endpoint sem `@Public()`
 - **THEN** o valor recebido é o `sub` do JWT do usuário autenticado
+
+### Requirement: Listar gastos fixos pendentes por mês
+O sistema SHALL retornar os gastos fixos ativos do usuário autenticado que incidem no mês informado e que ainda não possuem um `expense_entry` vinculado (`fixedExpenseId`) com `date` dentro daquele mês. O parâmetro `month` no formato `YYYY-MM` SHALL ser obrigatório. A lógica de recorrência SHALL seguir as regras: `monthly` incide em todo mês a partir do mês de `referenceDate`; `quarterly` incide se a diferença em meses entre o mês alvo e o mês de `referenceDate` for divisível por 3; `semiannual` se divisível por 6; `annual` se o número do mês (1–12) coincidir com o mês de `referenceDate`. Gastos fixos cujo `referenceDate` seja posterior ao mês alvo SHALL ser excluídos.
+
+#### Scenario: Listagem com gastos pendentes no mês
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=2024-01` e possui gastos fixos ativos que incidem em janeiro e ainda não foram confirmados
+- **THEN** sistema retorna 200 com array contendo esses gastos fixos com seus campos completos (incluindo `referenceDate`)
+
+#### Scenario: Gasto anual não aparece em mês incorreto
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=2024-02` e possui gasto fixo `annual` com `referenceDate` em março
+- **THEN** sistema retorna 200 sem incluir esse gasto fixo anual na lista
+
+#### Scenario: Gasto anual aparece no mês correto
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=2024-03` e possui gasto fixo `annual` com `referenceDate` em qualquer março
+- **THEN** sistema retorna 200 incluindo esse gasto fixo na lista
+
+#### Scenario: Gasto trimestral aparece nos meses corretos
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=2024-04` e possui gasto fixo `quarterly` com `referenceDate = 2024-01-xx`
+- **THEN** sistema retorna 200 incluindo esse gasto fixo (diferença = 3 meses, divisível por 3)
+
+#### Scenario: Gasto já confirmado no mês não aparece
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=2024-01` e o gasto fixo mensal já foi confirmado nesse mês (existe `expense_entry` com `fixedExpenseId` e `date` em `2024-01`)
+- **THEN** sistema retorna 200 sem incluir esse gasto fixo na lista
+
+#### Scenario: Mês anterior à referenceDate não retorna o gasto
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=2023-12` e o gasto fixo tem `referenceDate = 2024-01-01`
+- **THEN** sistema retorna 200 sem incluir esse gasto fixo
+
+#### Scenario: Parâmetro month ausente retorna 400
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending` sem o parâmetro `month`
+- **THEN** sistema retorna 400 Bad Request com mensagem de validação
+
+#### Scenario: Parâmetro month em formato inválido retorna 400
+- **WHEN** usuário autenticado envia GET `/fixed-expenses/pending?month=01-2024`
+- **THEN** sistema retorna 400 Bad Request com mensagem de validação
+
+#### Scenario: Exige autenticação
+- **WHEN** requisição GET `/fixed-expenses/pending?month=2024-01` chega sem cookie `access_token` válido
+- **THEN** sistema retorna 401 Unauthorized
+
+#### Scenario: Isolamento entre usuários
+- **WHEN** usuário A envia GET `/fixed-expenses/pending?month=2024-01` e usuário B possui gastos fixos pendentes
+- **THEN** sistema retorna apenas os pendentes de usuário A
+
+### Requirement: Confirmar gasto fixo para um mês
+O sistema SHALL permitir que um usuário autenticado confirme um gasto fixo para um determinado mês, criando um `expense_entry` vinculado. O body SHALL aceitar `month` (formato `YYYY-MM`, obrigatório) e `amountInCents` (opcional; se omitido usa o valor do gasto fixo base). O campo `date` do `expense_entry` criado SHALL ser o primeiro dia do mês informado (`YYYY-MM-01`). O `expense_entry` SHALL ser vinculado ao gasto fixo via `fixedExpenseId`. O sistema SHALL impedir dupla confirmação do mesmo gasto fixo no mesmo mês.
+
+#### Scenario: Confirmação bem-sucedida com valor do gasto fixo base
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com `{ "month": "2024-01" }` e o gasto fixo existe, está ativo e ainda não foi confirmado em janeiro
+- **THEN** sistema cria um `expense_entry` com `amountInCents` do gasto fixo base, `date = "2024-01-01"`, `fixedExpenseId` igual ao id do gasto fixo, e retorna 201 com os dados do lançamento criado
+
+#### Scenario: Confirmação com valor customizado
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com `{ "month": "2024-01", "amountInCents": 95000 }`
+- **THEN** sistema cria o `expense_entry` com `amountInCents = 95000` e retorna 201
+
+#### Scenario: Dupla confirmação no mesmo mês retorna 409
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com `month` de um mês em que o gasto fixo já foi confirmado
+- **THEN** sistema retorna 409 Conflict
+
+#### Scenario: Gasto fixo de outro usuário retorna 404
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com ID de gasto fixo pertencente a outro usuário
+- **THEN** sistema retorna 404 Not Found
+
+#### Scenario: Gasto fixo inativo retorna 404
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com ID de gasto fixo com `isActive = false`
+- **THEN** sistema retorna 404 Not Found
+
+#### Scenario: Month ausente retorna 400
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` sem o campo `month`
+- **THEN** sistema retorna 400 Bad Request com mensagem de validação
+
+#### Scenario: Month em formato inválido retorna 400
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com `month` fora do formato `YYYY-MM`
+- **THEN** sistema retorna 400 Bad Request com mensagem de validação
+
+#### Scenario: amountInCents inválido retorna 400
+- **WHEN** usuário autenticado envia POST `/fixed-expenses/:id/confirm` com `amountInCents <= 0`
+- **THEN** sistema retorna 400 Bad Request com mensagem de validação
+
+#### Scenario: Exige autenticação
+- **WHEN** requisição POST `/fixed-expenses/:id/confirm` chega sem cookie `access_token` válido
+- **THEN** sistema retorna 401 Unauthorized

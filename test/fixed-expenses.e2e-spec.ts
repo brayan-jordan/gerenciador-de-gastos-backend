@@ -314,4 +314,285 @@ describe('FixedExpenseController (e2e)', () => {
         .expect(404)
     })
   })
+
+  describe('GET /fixed-expenses/pending', () => {
+    it('retorna gastos mensais pendentes no mês (200)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Mensal', amountInCents: 10000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-06')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      expect(Array.isArray(response.body)).toBe(true)
+      const found = response.body.find((fe: { id: string }) => fe.id === created.body.id)
+      expect(found).toBeDefined()
+    })
+
+    it('gasto anual não aparece no mês incorreto (200)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Anual Março', amountInCents: 50000, recurrence: 'annual', referenceDate: '2024-03-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-02')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      const found = response.body.find((fe: { id: string }) => fe.id === created.body.id)
+      expect(found).toBeUndefined()
+    })
+
+    it('gasto anual aparece no mês correto (200)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Anual Maio', amountInCents: 60000, recurrence: 'annual', referenceDate: '2024-05-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2025-05')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      const found = response.body.find((fe: { id: string }) => fe.id === created.body.id)
+      expect(found).toBeDefined()
+    })
+
+    it('gasto trimestral aparece no mês correto (200)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Trimestral', amountInCents: 30000, recurrence: 'quarterly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-04')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      const found = response.body.find((fe: { id: string }) => fe.id === created.body.id)
+      expect(found).toBeDefined()
+    })
+
+    it('gasto já confirmado não aparece nos pendentes', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Confirmado', amountInCents: 20000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${created.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-07' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-07')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      const found = response.body.find((fe: { id: string }) => fe.id === created.body.id)
+      expect(found).toBeUndefined()
+    })
+
+    it('mês anterior à referenceDate não retorna gasto', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Futuro', amountInCents: 10000, recurrence: 'monthly', referenceDate: '2025-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-12')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      const found = response.body.find((fe: { id: string }) => fe.id === created.body.id)
+      expect(found).toBeUndefined()
+    })
+
+    it('month ausente retorna 400', async () => {
+      await request(app.getHttpServer())
+        .get('/fixed-expenses/pending')
+        .set('Cookie', cookieA)
+        .expect(400)
+    })
+
+    it('month em formato inválido retorna 400', async () => {
+      await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=01-2024')
+        .set('Cookie', cookieA)
+        .expect(400)
+    })
+
+    it('exige autenticação (401)', async () => {
+      await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-01')
+        .expect(401)
+    })
+
+    it('isolamento entre usuários', async () => {
+      const createdB = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieB)
+        .send({ description: 'Gasto B pendente', amountInCents: 5000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .get('/fixed-expenses/pending?month=2024-08')
+        .set('Cookie', cookieA)
+        .expect(200)
+
+      const found = response.body.find((fe: { id: string }) => fe.id === createdB.body.id)
+      expect(found).toBeUndefined()
+    })
+  })
+
+  describe('POST /fixed-expenses/:id/confirm', () => {
+    it('confirmação com valor base retorna 201 com expense_entry correto', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Confirm Base', amountInCents: 80000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-09' })
+        .expect(201)
+
+      expect(response.body.fixedExpenseId).toBe(fixedExpense.body.id)
+      expect(response.body.amountInCents).toBe(80000)
+      expect(response.body.date).toBe('2024-09-01')
+      expect(response.body.description).toBe('Confirm Base')
+    })
+
+    it('confirmação com valor customizado retorna 201', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Confirm Custom', amountInCents: 50000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-10', amountInCents: 45000 })
+        .expect(201)
+
+      expect(response.body.amountInCents).toBe(45000)
+      expect(response.body.fixedExpenseId).toBe(fixedExpense.body.id)
+    })
+
+    it('dupla confirmação no mesmo mês retorna 409', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Dupla', amountInCents: 10000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-11' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-11' })
+        .expect(409)
+    })
+
+    it('gasto fixo de outro usuário retorna 404', async () => {
+      const fixedExpenseB = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieB)
+        .send({ description: 'B Confirm', amountInCents: 5000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpenseB.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-09' })
+        .expect(404)
+    })
+
+    it('gasto fixo inativo retorna 404', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Para Inativar', amountInCents: 5000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .delete(`/fixed-expenses/${fixedExpense.body.id}`)
+        .set('Cookie', cookieA)
+        .expect(204)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-09' })
+        .expect(404)
+    })
+
+    it('month ausente retorna 400', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Month Missing', amountInCents: 5000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({})
+        .expect(400)
+    })
+
+    it('amountInCents inválido retorna 400', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Amount Inválido', amountInCents: 5000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-09', amountInCents: 0 })
+        .expect(400)
+    })
+
+    it('mês fora da recorrência retorna 400', async () => {
+      const fixedExpense = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Anual Fevereiro', amountInCents: 5000, recurrence: 'annual', referenceDate: '2024-02-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .post(`/fixed-expenses/${fixedExpense.body.id}/confirm`)
+        .set('Cookie', cookieA)
+        .send({ month: '2024-05' })
+        .expect(400)
+    })
+
+    it('exige autenticação (401)', async () => {
+      await request(app.getHttpServer())
+        .post('/fixed-expenses/00000000-0000-0000-0000-000000000000/confirm')
+        .send({ month: '2024-01' })
+        .expect(401)
+    })
+  })
 })
