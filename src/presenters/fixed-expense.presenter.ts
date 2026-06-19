@@ -27,6 +27,12 @@ export class FixedExpensePresenter {
   })
   recurrence!: Recurrence
 
+  @ApiProperty({
+    description: 'Data de referência para o cálculo das ocorrências (YYYY-MM-DD)',
+    example: '2024-01-01',
+  })
+  referenceDate!: string
+
   @ApiProperty({ description: 'Se o gasto está ativo', example: true })
   isActive!: boolean
 
@@ -43,6 +49,7 @@ export class FixedExpensePresenter {
       description: fixedExpense.description,
       amountInCents: fixedExpense.amountInCents,
       recurrence: fixedExpense.recurrence,
+      referenceDate: fixedExpense.referenceDate,
       isActive: fixedExpense.isActive,
       createdAt: fixedExpense.createdAt,
       updatedAt: fixedExpense.updatedAt,

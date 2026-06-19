@@ -1,3 +1,5 @@
+## MODIFIED Requirements
+
 ### Requirement: Criar gasto fixo
 O sistema SHALL permitir que um usuário autenticado crie um gasto fixo vinculado ao seu próprio userId. O valor SHALL ser armazenado em centavos (inteiro positivo). A recorrência SHALL ser um dos valores do enum: `monthly`, `quarterly`, `semiannual`, `annual`. O campo `referenceDate` SHALL ser obrigatório e no formato ISO 8601 (`YYYY-MM-DD`), representando a data inicial a partir da qual a recorrência é contada. O campo `isActive` SHALL ser `true` por padrão. Os campos `createdAt` e `updatedAt` SHALL ser preenchidos automaticamente.
 

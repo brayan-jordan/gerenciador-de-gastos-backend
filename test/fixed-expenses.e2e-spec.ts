@@ -28,6 +28,7 @@ describe('FixedExpenseController (e2e)', () => {
     description: 'Aluguel',
     amountInCents: 120000,
     recurrence: 'monthly',
+    referenceDate: '2024-01-01',
   }
 
   describe('POST /fixed-expenses', () => {
@@ -42,6 +43,7 @@ describe('FixedExpenseController (e2e)', () => {
       expect(response.body.description).toBe('Aluguel')
       expect(response.body.amountInCents).toBe(120000)
       expect(response.body.recurrence).toBe('monthly')
+      expect(response.body.referenceDate).toBe('2024-01-01')
       expect(response.body.isActive).toBe(true)
     })
 
@@ -75,6 +77,23 @@ describe('FixedExpenseController (e2e)', () => {
         .send({ ...validPayload, amountInCents: -1 })
         .expect(400)
     })
+
+    it('rejeita ausência de referenceDate (400)', async () => {
+      const { referenceDate: _, ...withoutRef } = validPayload
+      await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send(withoutRef)
+        .expect(400)
+    })
+
+    it('rejeita referenceDate em formato inválido (400)', async () => {
+      await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ ...validPayload, referenceDate: '01/01/2024' })
+        .expect(400)
+    })
   })
 
   describe('GET /fixed-expenses', () => {
@@ -82,13 +101,13 @@ describe('FixedExpenseController (e2e)', () => {
       await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieA)
-        .send({ description: 'Internet', amountInCents: 9900, recurrence: 'monthly' })
+        .send({ description: 'Internet', amountInCents: 9900, recurrence: 'monthly', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieB)
-        .send({ description: 'Gasto B', amountInCents: 5000, recurrence: 'annual' })
+        .send({ description: 'Gasto B', amountInCents: 5000, recurrence: 'annual', referenceDate: '2024-01-01' })
         .expect(201)
 
       const response = await request(app.getHttpServer())
@@ -99,6 +118,7 @@ describe('FixedExpenseController (e2e)', () => {
       expect(Array.isArray(response.body)).toBe(true)
       for (const item of response.body) {
         expect(item.description).not.toBe('Gasto B')
+        expect(item.referenceDate).toBeDefined()
       }
     })
 
@@ -122,7 +142,7 @@ describe('FixedExpenseController (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieA)
-        .send({ description: 'Streamings', amountInCents: 4500, recurrence: 'monthly' })
+        .send({ description: 'Streamings', amountInCents: 4500, recurrence: 'monthly', referenceDate: '2024-03-15' })
         .expect(201)
 
       const response = await request(app.getHttpServer())
@@ -131,13 +151,14 @@ describe('FixedExpenseController (e2e)', () => {
         .expect(200)
 
       expect(response.body.id).toBe(created.body.id)
+      expect(response.body.referenceDate).toBe('2024-03-15')
     })
 
     it('retorna 404 para id de outro usuário', async () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieB)
-        .send({ description: 'Gasto B privado', amountInCents: 1000, recurrence: 'quarterly' })
+        .send({ description: 'Gasto B privado', amountInCents: 1000, recurrence: 'quarterly', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())
@@ -166,7 +187,7 @@ describe('FixedExpenseController (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieA)
-        .send({ description: 'Antes', amountInCents: 1000, recurrence: 'monthly' })
+        .send({ description: 'Antes', amountInCents: 1000, recurrence: 'monthly', referenceDate: '2024-01-01' })
         .expect(201)
 
       const response = await request(app.getHttpServer())
@@ -177,13 +198,44 @@ describe('FixedExpenseController (e2e)', () => {
 
       expect(response.body.description).toBe('Depois')
       expect(response.body.amountInCents).toBe(1000)
+      expect(response.body.referenceDate).toBe('2024-01-01')
+    })
+
+    it('atualiza referenceDate (200)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Ref update', amountInCents: 2000, recurrence: 'quarterly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      const response = await request(app.getHttpServer())
+        .patch(`/fixed-expenses/${created.body.id}`)
+        .set('Cookie', cookieA)
+        .send({ referenceDate: '2024-04-01' })
+        .expect(200)
+
+      expect(response.body.referenceDate).toBe('2024-04-01')
+    })
+
+    it('rejeita referenceDate em formato inválido (400)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/fixed-expenses')
+        .set('Cookie', cookieA)
+        .send({ description: 'Ref inválido', amountInCents: 3000, recurrence: 'monthly', referenceDate: '2024-01-01' })
+        .expect(201)
+
+      await request(app.getHttpServer())
+        .patch(`/fixed-expenses/${created.body.id}`)
+        .set('Cookie', cookieA)
+        .send({ referenceDate: 'não-é-data' })
+        .expect(400)
     })
 
     it('retorna 404 para gasto de outro usuário', async () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieB)
-        .send({ description: 'B gasto', amountInCents: 2000, recurrence: 'monthly' })
+        .send({ description: 'B gasto', amountInCents: 2000, recurrence: 'monthly', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())
@@ -197,7 +249,7 @@ describe('FixedExpenseController (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieA)
-        .send({ description: 'Válido', amountInCents: 5000, recurrence: 'monthly' })
+        .send({ description: 'Válido', amountInCents: 5000, recurrence: 'monthly', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())
@@ -213,7 +265,7 @@ describe('FixedExpenseController (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieA)
-        .send({ description: 'Deletar', amountInCents: 3000, recurrence: 'annual' })
+        .send({ description: 'Deletar', amountInCents: 3000, recurrence: 'annual', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())
@@ -226,7 +278,7 @@ describe('FixedExpenseController (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieA)
-        .send({ description: 'Sumir', amountInCents: 500, recurrence: 'monthly' })
+        .send({ description: 'Sumir', amountInCents: 500, recurrence: 'monthly', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())
@@ -246,7 +298,7 @@ describe('FixedExpenseController (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/fixed-expenses')
         .set('Cookie', cookieB)
-        .send({ description: 'B del', amountInCents: 100, recurrence: 'semiannual' })
+        .send({ description: 'B del', amountInCents: 100, recurrence: 'semiannual', referenceDate: '2024-01-01' })
         .expect(201)
 
       await request(app.getHttpServer())

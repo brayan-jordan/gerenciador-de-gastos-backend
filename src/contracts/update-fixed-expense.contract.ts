@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator'
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator'
 import type { Recurrence } from '../models/fixed-expense'
 
 export class UpdateFixedExpenseContract {
@@ -32,4 +32,13 @@ export class UpdateFixedExpenseContract {
   @IsOptional()
   @IsEnum(['monthly', 'quarterly', 'semiannual', 'annual'])
   recurrence?: Recurrence
+
+  @ApiProperty({
+    description: 'Data de referência para o cálculo das ocorrências (YYYY-MM-DD)',
+    example: '2024-01-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  referenceDate?: string
 }
