@@ -12,6 +12,16 @@ async function bootstrap() {
 
   app.use(cookieParser())
 
+  const envService = app.get(EnvService)
+
+  const isProduction = envService.get('NODE_ENV') === 'production'
+  const corsOrigins = envService.get('CORS_ORIGINS')
+
+  app.enableCors({
+    origin: isProduction ? corsOrigins : true,
+    credentials: true,
+  })
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
 
   const config = new DocumentBuilder()
@@ -30,7 +40,6 @@ async function bootstrap() {
     }),
   )
 
-  const envService = app.get(EnvService)
   const port = envService.get('PORT')
 
   await app.listen(port)

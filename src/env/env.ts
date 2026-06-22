@@ -8,6 +8,16 @@ export const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .optional()
     .default('development'),
+  CORS_ORIGINS: z
+    .string()
+    .optional()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter((origin) => origin.length > 0),
+    ),
 })
 
 export type Env = z.infer<typeof envSchema>
