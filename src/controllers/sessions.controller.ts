@@ -47,7 +47,7 @@ export class SessionsController {
 
     response.cookie(ACCESS_TOKEN_COOKIE, token, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       secure: this.envService.get('NODE_ENV') === 'production',
       maxAge: ONE_DAY_IN_MS,
     })
