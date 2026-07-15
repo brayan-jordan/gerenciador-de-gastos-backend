@@ -1,98 +1,108 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Gerenciador de Gastos — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API para gerenciamento de gastos pessoais: cadastro e autenticação de usuários, registro de gastos, controle de gastos fixos recorrentes e histórico.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> 🔗 **Acesse a aplicação:** [gerenciador-de-gastos-frontend.onrender.com](https://gerenciador-de-gastos-frontend.onrender.com/)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🧭 Desenvolvido com OpenSpec
 
-## Project setup
+Este projeto foi construído seguindo um fluxo **spec-driven** com [OpenSpec](https://github.com/Fission-AI/OpenSpec). Em vez de codar direto, cada funcionalidade nasce de uma **especificação escrita antes da implementação**: descreve-se o comportamento esperado em requisitos e cenários (`WHEN` / `THEN`), e só então o código é escrito para satisfazê-los.
+
+As especificações vivem versionadas no diretório [`openspec/`](./openspec):
+
+- **`openspec/specs/`** — a "verdade" atual do sistema, organizada por capacidade (`user-auth`, `expense-entries`, `fixed-expenses`, `test-coverage`).
+- **`openspec/changes/archive/`** — o histórico de cada mudança já aplicada, preservando a evolução do projeto.
+
+**Benefícios na prática:**
+
+- **Intenção antes do código** — o comportamento é definido e revisado antes da implementação, reduzindo retrabalho.
+- **Documentação sempre viva** — as specs descrevem o que o sistema faz hoje, servindo de fonte única de verdade.
+- **Cobertura orientada por cenários** — cada requisito vira caso de teste, elevando a confiança nas mudanças.
+- **Trilha de evolução** — o histórico de changes deixa claro *o quê* mudou e *por quê*.
+
+---
+
+## ✨ Funcionalidades
+
+- **Autenticação e usuários**
+  - Cadastro com `name`, `email` e `password` (senha armazenada com hash, nunca em texto puro).
+  - Sign-in com emissão de **JWT em cookie `httpOnly`** e logout que limpa a sessão.
+  - Rotas protegidas por padrão; rotas públicas (cadastro/login) explicitamente marcadas.
+
+- **Histórico de gastos (`expense-entries`)**
+  - CRUD completo de lançamentos (valor em centavos, descrição e data).
+  - Isolamento por usuário — cada um enxerga apenas os próprios lançamentos.
+
+- **Gastos fixos (`fixed-expenses`)**
+  - CRUD com **soft delete** e recorrência: `monthly`, `quarterly`, `semiannual`, `annual`.
+  - **Data de referência** (`referenceDate`) que define o início da recorrência.
+  - **Listagem de pendentes por mês** — calcula quais gastos fixos incidem no mês e ainda não foram confirmados.
+  - **Confirmação de gasto fixo** — gera automaticamente um lançamento no histórico, com trava contra dupla confirmação no mesmo mês.
+
+---
+
+## 🛠️ Tecnologias
+
+| Camada | Stack |
+| --- | --- |
+| Runtime / Framework | [NestJS 11](https://nestjs.com/) sobre Node.js + TypeScript |
+| Banco de dados | PostgreSQL com [Drizzle ORM](https://orm.drizzle.team/) |
+| Autenticação | JWT (`@nestjs/jwt`) em cookie `httpOnly` + bcrypt |
+| Validação | `class-validator` / `class-transformer` e Zod (variáveis de ambiente) |
+| Documentação da API | Swagger + [Scalar](https://scalar.com/) em `/docs` |
+| Testes | [Vitest](https://vitest.dev/) (unitários + e2e) |
+| Qualidade de código | [Biome](https://biomejs.dev/) (lint + format) |
+| Infra | Docker / Docker Compose |
+
+---
+
+## 🚀 Como rodar
+
+**Pré-requisitos:** Node.js, Docker e uma instância PostgreSQL (ou use o `docker-compose`).
 
 ```bash
-$ npm install
+# 1. Clonar
+git clone https://github.com/brayan-jordan/gerenciador-de-gastos-backend.git
+cd gerenciador-de-gastos-backend
+
+# 2. Instalar dependências
+npm install
+
+# 3. Configurar variáveis de ambiente
+cp .env.example .env   # ajuste os valores conforme necessário
+
+# 4. Subir o banco (opcional, via Docker)
+docker compose up -d
+
+# 5. Rodar as migrations
+npm run db:migrate
+
+# 6. Iniciar em modo desenvolvimento
+npm run start:dev
 ```
 
-## Compile and run the project
+A documentação interativa da API fica disponível em `http://localhost:<PORT>/docs`.
+
+---
+
+## 🧪 Testes
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run test        # testes unitários
+npm run test:e2e    # testes end-to-end
+npm run test:cov    # cobertura
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## 📜 Scripts úteis
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Script | Descrição |
+| --- | --- |
+| `npm run start:dev` | Sobe a API em modo watch |
+| `npm run check` | Roda lint + format com Biome |
+| `npm run db:generate` | Gera migrations a partir do schema |
+| `npm run db:migrate` | Aplica as migrations |
+| `npm run db:studio` | Abre o Drizzle Studio |
